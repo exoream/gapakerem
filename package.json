@@ -4,8 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "prisma generate",
-    "start": "nodemon index.js"
+  "postinstall": "prisma generate",
+  "build": "echo Build selesai",
+  "start": "nodemon index.js"
   },
   "keywords": [],
   "author": "",
