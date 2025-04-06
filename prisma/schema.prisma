@@ -1,0 +1,182 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  name      String
+  email     String   @unique
+  number    String   @unique
+  password  String
+  photo     String?
+  role      String   @default("user")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tripBookings TripBooking[]
+
+  @@map("users")
+}
+
+model Guide {
+  id Int @id @default(autoincrement())
+  name String 
+  photo String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  openTrips OpenTrip[]
+  privateTripBookings PrivateTripBooking[]
+
+  @@map("guides")
+}
+
+model Porter {
+  id Int @id @default(autoincrement())
+  name String 
+  photo String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  openTripPorters OpenTripPorter[]
+  porterPrivateTripBooking PorterPrivateTripBooking[]
+
+  @@map("porters")
+}
+
+enum TripType {
+  open
+  private
+}
+
+model Trip {
+  id Int @id @default(autoincrement())
+  mountain_name String
+  mountain_photo String
+  description String @db.Text
+  equipment String @db.Text
+  estimation_time String @db.Text
+  price Int
+  trip_type TripType
+  total_participants Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  openTrips OpenTrip[]
+  privateTrips PrivateTrip[]
+  tripBookings TripBooking[]
+
+  @@map("trips")
+}
+
+model OpenTrip {
+  id Int @id @default(autoincrement())
+  id_trip Int
+  id_guide Int
+  traveling_time String
+  agenda String @db.Text
+
+  trip Trip @relation(fields: [id_trip], references: [id], onDelete: Cascade)
+  guide Guide @relation(fields: [id_guide], references: [id])
+
+  openTripPorters OpenTripPorter[]
+
+  @@map("open_trips")
+}
+
+model PrivateTrip {
+  id Int @id @default(autoincrement())
+  id_trip Int
+  price_per_day Int
+
+  trip Trip @relation(fields: [id_trip], references: [id], onDelete: Cascade)
+
+  @@map("private_trips")
+}
+
+model OpenTripPorter {
+  id Int @id @default(autoincrement())
+  id_open_trip Int
+  id_porter Int
+
+  trip OpenTrip @relation(fields: [id_open_trip], references: [id], onDelete: Cascade)
+  porter Porter @relation(fields: [id_porter], references: [id])
+
+  @@map("open_trip_porters")
+}
+
+model TripBooking {
+  id Int @id @default(autoincrement())
+  id_user Int
+  id_trip Int
+  total_participants Int
+  name_participants String @db.Text
+  no_hp String
+  meeting_point String @db.Text
+  total_price Int
+  trip_type TripType
+  payment_proof String?
+  payment_status String @default("unpaid")
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user User @relation(fields: [id_user], references: [id])
+  trip Trip @relation(fields: [id_trip], references: [id])
+
+  privateTripBooking PrivateTripBooking[]
+  feedback feedback[]
+  
+  @@map("trip_bookings")
+}
+
+model PrivateTripBooking {
+  id Int @id @default(autoincrement())
+  id_trip_booking Int
+  total_days Int
+  start_date DateTime
+  id_guide Int
+
+  tripBooking TripBooking @relation(fields: [id_trip_booking], references: [id])
+  guide Guide @relation(fields: [id_guide], references: [id])
+
+  porterPrivateTripBooking PorterPrivateTripBooking[]
+
+  @@map("private_trip_bookings")
+}
+
+model PorterPrivateTripBooking {
+  id Int @id @default(autoincrement())
+  id_private_trip_booking Int
+  id_porter Int
+
+  privateTripBooking PrivateTripBooking @relation(fields: [id_private_trip_booking], references: [id])
+  porter Porter @relation(fields: [id_porter], references: [id])
+
+  @@map("porter_trip_bookings")
+}
+
+model feedback {
+  id Int @id @default(autoincrement())
+  id_trip_booking Int
+  message String @db.Text
+  rating Int
+
+  created_at DateTime @default(now())
+
+  tripBooking TripBooking @relation(fields: [id_trip_booking], references: [id], onDelete: Cascade)
+
+  @@map("feedbacks")
+}
+
