@@ -262,6 +262,7 @@ class BookingService {
     });
 
     const formattedBookings = bookings.map((booking) => ({
+      id: booking.id,
       participant_name: booking.name_participants,
       phone_number: booking.no_hp,
       mountain_name: booking.trip.mountain_name,
@@ -516,6 +517,7 @@ class BookingService {
     });
 
     const formattedBookings = bookings.map((booking) => ({
+      id: booking.id,
       participant_name: booking.name_participants,
       phone_number: booking.no_hp,
       mountain_name: booking.trip.mountain_name,

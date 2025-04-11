@@ -229,6 +229,7 @@ class TripService {
       include: {
         trip: {
           select: {
+            id: true,
             mountain_name: true,
             mountain_photo: true,
             description: true,
@@ -260,6 +261,7 @@ class TripService {
     const lastPage = Math.ceil(totalData / limitNumber);
 
     const formattedTrips = openTrips.map((trip) => ({
+      id: trip.trip.id,
       mountain_name: trip.trip.mountain_name,
       mountain_photo: trip.trip.mountain_photo,
       description: trip.trip.description,
@@ -297,6 +299,7 @@ class TripService {
       include: {
         trip: {
           select: {
+            id: true,
             mountain_name: true,
             mountain_photo: true,
             description: true,
@@ -330,6 +333,7 @@ class TripService {
     }
 
     const formattedOpenTrip = {
+      id: openTrip.trip.id,
       mountain_name: openTrip.trip.mountain_name,
       mountain_photo: openTrip.trip.mountain_photo,
       description: openTrip.trip.description,
@@ -429,6 +433,7 @@ class TripService {
       skip: skipNumber,
       take: limitNumber,
       select: {
+        id: true,
         mountain_name: true,
         mountain_photo: true,
         description: true,
