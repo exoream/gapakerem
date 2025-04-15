@@ -236,7 +236,20 @@ class TripService {
             price: true,
             estimation_time: true,
             equipment: true,
+            total_participants: true,
             trip_type: true,
+            tripBookings: {
+              select: {
+                feedback: {
+                  select: {
+                    id: true,
+                    message: true,
+                    rating: true,
+                    created_at: true,
+                  },
+                },
+              },
+            },
           },
         },
         guide: {
@@ -260,26 +273,50 @@ class TripService {
 
     const lastPage = Math.ceil(totalData / limitNumber);
 
-    const formattedTrips = openTrips.map((trip) => ({
-      id: trip.trip.id,
-      mountain_name: trip.trip.mountain_name,
-      mountain_photo: trip.trip.mountain_photo,
-      description: trip.trip.description,
-      price: trip.trip.price,
-      estimation_time: trip.trip.estimation_time,
-      equipment: trip.trip.equipment,
-      trip_type: trip.trip.trip_type,
-      traveling_time: trip.traveling_time,
-      agenda: trip.agenda,
-      guide: {
-        name: trip.guide?.name || null,
-        photo: trip.guide?.photo || null,
-      },
-      porters: trip.openTripPorters.map((p) => ({
-        name: p.porter.name,
-        photo: p.porter.photo,
-      })),
-    }));
+    const formattedTrips = openTrips.map((trip) => {
+      // Collect all feedback entries from all bookings
+      let allFeedback = [];
+      trip.trip.tripBookings.forEach((booking) => {
+        if (booking.feedback && booking.feedback.length > 0) {
+          allFeedback = [...allFeedback, ...booking.feedback];
+        }
+      });
+
+      // Calculate average rating if there's feedback
+      const totalRating = allFeedback.reduce(
+        (sum, item) => sum + item.rating,
+        0
+      );
+      const averageRating =
+        allFeedback.length > 0 ? totalRating / allFeedback.length : 0;
+
+      return {
+        id: trip.trip.id,
+        mountain_name: trip.trip.mountain_name,
+        mountain_photo: trip.trip.mountain_photo,
+        description: trip.trip.description,
+        price: trip.trip.price,
+        estimation_time: trip.trip.estimation_time,
+        equipment: trip.trip.equipment,
+        total_participants: trip.trip.total_participants,
+        trip_type: trip.trip.trip_type,
+        traveling_time: trip.traveling_time,
+        agenda: trip.agenda,
+        guide: {
+          name: trip.guide?.name || null,
+          photo: trip.guide?.photo || null,
+        },
+        porters: trip.openTripPorters.map((p) => ({
+          name: p.porter.name,
+          photo: p.porter.photo,
+        })),
+        feedback: {
+          items: allFeedback,
+          count: allFeedback.length,
+          average_rating: averageRating,
+        },
+      };
+    });
 
     const pagination = {
       limit: limitNumber,
@@ -442,7 +479,46 @@ class TripService {
         equipment: true,
         trip_type: true,
         total_participants: true,
+        tripBookings: {
+          select: {
+            feedback: {
+              select: {
+                id: true,
+                message: true,
+                rating: true,
+                created_at: true,
+              },
+            },
+          },
+        },
       },
+    });
+
+    const tripsWithFeedback = trips.map((trip) => {
+      let allFeedback = [];
+      trip.tripBookings.forEach((booking) => {
+        if (booking.feedback && booking.feedback.length > 0) {
+          allFeedback = [...allFeedback, ...booking.feedback];
+        }
+      });
+
+      const totalRating = allFeedback.reduce(
+        (sum, item) => sum + item.rating,
+        0
+      );
+      const averageRating =
+        allFeedback.length > 0 ? totalRating / allFeedback.length : 0;
+
+      const { tripBookings, ...tripData } = trip;
+
+      return {
+        ...tripData,
+        feedback: {
+          items: allFeedback,
+          count: allFeedback.length,
+          average_rating: averageRating,
+        },
+      };
     });
 
     const lastPage = Math.ceil(totalData / limitNumber);
@@ -454,7 +530,7 @@ class TripService {
       total_data: totalData,
     };
 
-    return { trips, pagination };
+    return { trips: tripsWithFeedback, pagination };
   }
 
   static async deleteTripById(request) {
