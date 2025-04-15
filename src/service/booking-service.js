@@ -447,7 +447,7 @@ class BookingService {
       throw new ResponseError("Status pembayaran tidak valid", 400);
     }
 
-    if (booking.payment_status === status) {
+    if (booking.payment_status === "approved") {
       throw new ResponseError("Status pembayaran sudah selesai", 400);
     }
 
