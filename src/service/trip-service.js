@@ -331,66 +331,231 @@ class TripService {
   static async getTripById(request) {
     const { id } = request.params;
 
-    const openTrip = await prisma.openTrip.findUnique({
+    // First determine whether this is an open trip or private trip
+    const tripData = await prisma.trip.findUnique({
       where: { id: Number(id) },
-      include: {
-        trip: {
-          select: {
-            id: true,
-            mountain_name: true,
-            mountain_photo: true,
-            description: true,
-            price: true,
-            estimation_time: true,
-            equipment: true,
-            trip_type: true,
+      select: {
+        trip_type: true,
+      },
+    });
+
+    if (!tripData) {
+      throw new ResponseError("Trip tidak ditemukan", 404);
+    }
+
+    // Based on trip type, fetch the appropriate data
+    if (tripData.trip_type === "open") {
+      // Fetch open trip data
+      const openTrip = await prisma.openTrip.findFirst({
+        where: { id_trip: Number(id) },
+        include: {
+          trip: {
+            select: {
+              id: true,
+              mountain_name: true,
+              mountain_photo: true,
+              description: true,
+              price: true,
+              estimation_time: true,
+              equipment: true,
+              trip_type: true,
+              total_participants: true,
+              tripBookings: {
+                select: {
+                  feedback: {
+                    select: {
+                      id: true,
+                      message: true,
+                      rating: true,
+                      created_at: true,
+                      tripBooking: {
+                        select: {
+                          user: {
+                            select: {
+                              name: true,
+                              photo: true,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
-        },
-        guide: {
-          select: {
-            name: true,
-            photo: true,
+          guide: {
+            select: {
+              name: true,
+              photo: true,
+            },
           },
-        },
-        openTripPorters: {
-          select: {
-            porter: {
-              select: {
-                name: true,
-                photo: true,
+          openTripPorters: {
+            select: {
+              porter: {
+                select: {
+                  name: true,
+                  photo: true,
+                },
               },
             },
           },
         },
-      },
-    });
+      });
 
-    if (!openTrip) {
-      throw new ResponseError("Open trip tidak ditemukan", 404);
+      if (!openTrip) {
+        throw new ResponseError("Open trip tidak ditemukan", 404);
+      }
+
+      // Collect all feedback entries
+      let allFeedback = [];
+      openTrip.trip.tripBookings.forEach((booking) => {
+        if (booking.feedback && booking.feedback.length > 0) {
+          // Format feedback to include user data
+          const formattedFeedback = booking.feedback.map((fb) => ({
+            id: fb.id,
+            message: fb.message,
+            rating: fb.rating,
+            created_at: fb.created_at,
+            user: {
+              name: fb.tripBooking.user.name,
+              photo: fb.tripBooking.user.photo,
+            },
+          }));
+          allFeedback = [...allFeedback, ...formattedFeedback];
+        }
+      });
+
+      // Calculate average rating
+      const totalRating = allFeedback.reduce(
+        (sum, item) => sum + item.rating,
+        0
+      );
+      const averageRating =
+        allFeedback.length > 0 ? totalRating / allFeedback.length : 0;
+
+      const formattedOpenTrip = {
+        id: openTrip.trip.id,
+        mountain_name: openTrip.trip.mountain_name,
+        mountain_photo: openTrip.trip.mountain_photo,
+        description: openTrip.trip.description,
+        price: openTrip.trip.price,
+        estimation_time: openTrip.trip.estimation_time,
+        equipment: openTrip.trip.equipment,
+        trip_type: openTrip.trip.trip_type,
+        total_participants: openTrip.trip.total_participants,
+        traveling_time: openTrip.traveling_time,
+        agenda: openTrip.agenda,
+        guide: {
+          name: openTrip.guide?.name || null,
+          photo: openTrip.guide?.photo || null,
+        },
+        porters: openTrip.openTripPorters.map((p) => ({
+          name: p.porter.name,
+          photo: p.porter.photo,
+        })),
+        feedback: {
+          items: allFeedback,
+          count: allFeedback.length,
+          average_rating: averageRating,
+        },
+      };
+
+      return formattedOpenTrip;
+    } else {
+      // Fetch private trip data
+      const privateTrip = await prisma.privateTrip.findFirst({
+        where: { id_trip: Number(id) },
+        include: {
+          trip: {
+            select: {
+              id: true,
+              mountain_name: true,
+              mountain_photo: true,
+              description: true,
+              price: true,
+              estimation_time: true,
+              equipment: true,
+              trip_type: true,
+              total_participants: true,
+              tripBookings: {
+                select: {
+                  feedback: {
+                    select: {
+                      id: true,
+                      message: true,
+                      rating: true,
+                      created_at: true,
+                      tripBooking: {
+                        select: {
+                          user: {
+                            select: {
+                              name: true,
+                              photo: true,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!privateTrip) {
+        throw new ResponseError("Private trip tidak ditemukan", 404);
+      }
+
+      // Collect all feedback entries
+      let allFeedback = [];
+      privateTrip.trip.tripBookings.forEach((booking) => {
+        if (booking.feedback && booking.feedback.length > 0) {
+          // Format feedback to include user data
+          const formattedFeedback = booking.feedback.map((fb) => ({
+            id: fb.id,
+            message: fb.message,
+            rating: fb.rating,
+            created_at: fb.created_at,
+            user: {
+              name: fb.tripBooking.user.name,
+              photo: fb.tripBooking.user.photo,
+            },
+          }));
+          allFeedback = [...allFeedback, ...formattedFeedback];
+        }
+      });
+
+      // Calculate average rating
+      const totalRating = allFeedback.reduce(
+        (sum, item) => sum + item.rating,
+        0
+      );
+      const averageRating =
+        allFeedback.length > 0 ? totalRating / allFeedback.length : 0;
+
+      const formattedPrivateTrip = {
+        id: privateTrip.trip.id,
+        mountain_name: privateTrip.trip.mountain_name,
+        mountain_photo: privateTrip.trip.mountain_photo,
+        description: privateTrip.trip.description,
+        price: privateTrip.trip.price,
+        price_per_day: privateTrip.price_per_day,
+        estimation_time: privateTrip.trip.estimation_time,
+        equipment: privateTrip.trip.equipment,
+        trip_type: privateTrip.trip.trip_type,
+        total_participants: privateTrip.trip.total_participants,
+        feedback: {
+          items: allFeedback,
+          count: allFeedback.length,
+          average_rating: averageRating,
+        },
+      };
+
+      return formattedPrivateTrip;
     }
-
-    const formattedOpenTrip = {
-      id: openTrip.trip.id,
-      mountain_name: openTrip.trip.mountain_name,
-      mountain_photo: openTrip.trip.mountain_photo,
-      description: openTrip.trip.description,
-      price: openTrip.trip.price,
-      estimation_time: openTrip.trip.estimation_time,
-      equipment: openTrip.trip.equipment,
-      trip_type: openTrip.trip.trip_type,
-      traveling_time: openTrip.traveling_time,
-      agenda: openTrip.agenda,
-      guide: {
-        name: openTrip.guide?.name || null,
-        photo: openTrip.guide?.photo || null,
-      },
-      porters: openTrip.openTripPorters.map((p) => ({
-        name: p.porter.name,
-        photo: p.porter.photo,
-      })),
-    };
-
-    return formattedOpenTrip;
   }
 
   static async createPrivateTrip(request) {
