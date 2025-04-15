@@ -221,7 +221,6 @@ class BookingService {
       throw new ResponseError("Tipe trip tidak valid", 400);
     }
 
-    
     const filter = search
       ? {
           trip_type,
@@ -379,8 +378,11 @@ class BookingService {
         403
       );
     }
-
-    if (existingBooking.payment_proof) {
+    
+    if (
+      existingBooking.payment_proof &&
+      existingBooking.payment_status !== "rejected"
+    ) {
       throw new ResponseError(
         "Bukti pembayaran sudah diunggah sebelumnya",
         400
