@@ -82,14 +82,10 @@ class TripService {
     body.price = Number(body.price);
 
     const tripData = Validation.validate(TripValidation.updateTripSchema, body);
-
     const openTripData = Validation.validate(
       TripValidation.updateOpenTripSchema,
       body.open_trip || {}
     );
-
-    console.log("Request body:", request.body);
-    console.log("Trip data:", tripData);
 
     if (request.file) {
       if (
@@ -103,102 +99,88 @@ class TripService {
       if (request.file.size > 2 * 1024 * 1024) {
         throw new ResponseError("Ukuran foto maksimal 2MB", 400);
       }
+
+      const uploadResult = await new Promise((resolve, reject) => {
+        cloudinary.uploader
+          .upload_stream({ folder: "mountains" }, (error, result) => {
+            if (error) reject(new ResponseError("Gagal mengunggah foto", 500));
+            else resolve(result.secure_url);
+          })
+          .end(request.file.buffer);
+      });
+
+      tripData.mountain_photo = uploadResult;
     }
 
-    const result = await prisma.$transaction(async (prisma) => {
-      // Cek apakah trip dengan ID tersebut ada
-      const existingTrip = await prisma.trip.findUnique({
-        where: { id: Number(id_trip) },
-      });
-
-      if (!existingTrip) {
-        throw new ResponseError("Trip tidak ditemukan", 404);
-      }
-
-      if (
-        existingTrip.trip_type === "open" &&
-        tripData.trip_type === "private"
-      ) {
-        throw new ResponseError(
-          "Trip dengan tipe 'open' tidak bisa diubah menjadi 'private'",
-          400
-        );
-      }
-
-      // Jika ada foto baru, unggah ke Cloudinary
-      if (request.file) {
-        const uploadResult = await new Promise((resolve, reject) => {
-          cloudinary.uploader
-            .upload_stream({ folder: "mountains" }, (error, result) => {
-              if (error)
-                reject(new ResponseError("Gagal mengunggah foto", 500));
-              else resolve(result.secure_url);
-            })
-            .end(request.file.buffer);
-        });
-        tripData.mountain_photo = uploadResult;
-      }
-
-      const updatedTrip = await prisma.trip.update({
-        where: { id: Number(id_trip) },
-        data: {
-          ...tripData,
-          mountain_photo:
-            tripData.mountain_photo || existingTrip.mountain_photo,
-        },
-      });
-
-      let updatedOpenTrip;
-      const existingOpenTrip = await prisma.openTrip.findFirst({
-        where: { id_trip: Number(id_trip) },
-      });
-
-      if (existingOpenTrip) {
-        updatedOpenTrip = await prisma.openTrip.update({
-          where: { id: existingOpenTrip.id },
-          data: {
-            traveling_time: openTripData.traveling_time,
-            agenda: openTripData.agenda,
-            guide: openTripData.id_guide
-              ? { connect: { id: openTripData.id_guide } }
-              : undefined,
-          },
-        });
-      } else {
-        updatedOpenTrip = await prisma.openTrip.create({
-          data: {
-            id_trip: Number(id_trip),
-            traveling_time: openTripData.traveling_time,
-            agenda: openTripData.agenda,
-            guide: openTripData.id_guide
-              ? { connect: { id: openTripData.id_guide } }
-              : undefined,
-          },
-        });
-      }
-
-      // Update porters jika dikirim
-      if (openTripData.porters) {
-        // Hapus semua porter lama
-        await prisma.openTripPorter.deleteMany({
-          where: { id_open_trip: updatedOpenTrip.id },
-        });
-
-        // Tambahkan porter baru
-        const openTripPortersData = openTripData.porters.map((porterId) => ({
-          id_open_trip: updatedOpenTrip.id,
-          id_porter: porterId,
-        }));
-
-        await prisma.openTripPorter.createMany({
-          data: openTripPortersData,
-        });
-      }
-
-      return { trip: updatedTrip, open_trip: updatedOpenTrip };
+    const existingTrip = await prisma.trip.findUnique({
+      where: { id: Number(id_trip) },
     });
 
-    return result;
+    if (!existingTrip) {
+      throw new ResponseError("Trip tidak ditemukan", 404);
+    }
+
+    if (existingTrip.trip_type === "open" && tripData.trip_type === "private") {
+      throw new ResponseError(
+        "Trip dengan tipe 'open' tidak bisa diubah menjadi 'private'",
+        400
+      );
+    }
+
+    const updatedTrip = await prisma.trip.update({
+      where: { id: Number(id_trip) },
+      data: {
+        ...tripData,
+        mountain_photo: tripData.mountain_photo || existingTrip.mountain_photo,
+      },
+    });
+
+    const existingOpenTrip = await prisma.openTrip.findFirst({
+      where: { id_trip: Number(id_trip) },
+    });
+
+    let updatedOpenTrip;
+    if (existingOpenTrip) {
+      updatedOpenTrip = await prisma.openTrip.update({
+        where: { id: existingOpenTrip.id },
+        data: {
+          traveling_time: openTripData.traveling_time,
+          agenda: openTripData.agenda,
+          guide: openTripData.id_guide
+            ? { connect: { id: openTripData.id_guide } }
+            : undefined,
+        },
+      });
+    } else {
+      updatedOpenTrip = await prisma.openTrip.create({
+        data: {
+          id_trip: Number(id_trip),
+          traveling_time: openTripData.traveling_time,
+          agenda: openTripData.agenda,
+          guide: openTripData.id_guide
+            ? { connect: { id: openTripData.id_guide } }
+            : undefined,
+        },
+      });
+    }
+
+    if (openTripData.porters) {
+      await prisma.openTripPorter.deleteMany({
+        where: { id_open_trip: updatedOpenTrip.id },
+      });
+
+      const porters = openTripData.porters.map((id_porter) => ({
+        id_open_trip: updatedOpenTrip.id,
+        id_porter,
+      }));
+
+      await prisma.openTripPorter.createMany({ data: porters });
+    }
+
+    return {
+      trip: updatedTrip,
+      open_trip: updatedOpenTrip,
+    };
   }
 
   static async getAllOpenTrips(request) {
