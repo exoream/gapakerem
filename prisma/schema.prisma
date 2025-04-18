@@ -88,7 +88,7 @@ model OpenTrip {
   agenda String @db.Text
 
   trip Trip @relation(fields: [id_trip], references: [id], onDelete: Cascade)
-  guide Guide @relation(fields: [id_guide], references: [id])
+  guide Guide @relation(fields: [id_guide], references: [id], onDelete: Cascade)
 
   openTripPorters OpenTripPorter[]
 
@@ -111,7 +111,7 @@ model OpenTripPorter {
   id_porter Int
 
   trip OpenTrip @relation(fields: [id_open_trip], references: [id], onDelete: Cascade)
-  porter Porter @relation(fields: [id_porter], references: [id])
+  porter Porter @relation(fields: [id_porter], references: [id], onDelete: Cascade)
 
   @@map("open_trip_porters")
 }
@@ -149,7 +149,7 @@ model PrivateTripBooking {
   id_guide Int
 
   tripBooking TripBooking @relation(fields: [id_trip_booking], references: [id])
-  guide Guide @relation(fields: [id_guide], references: [id])
+  guide Guide @relation(fields: [id_guide], references: [id], onDelete: Cascade)
 
   porterPrivateTripBooking PorterPrivateTripBooking[]
 
@@ -162,7 +162,7 @@ model PorterPrivateTripBooking {
   id_porter Int
 
   privateTripBooking PrivateTripBooking @relation(fields: [id_private_trip_booking], references: [id])
-  porter Porter @relation(fields: [id_porter], references: [id])
+  porter Porter @relation(fields: [id_porter], references: [id], onDelete: Cascade)
 
   @@map("porter_trip_bookings")
 }

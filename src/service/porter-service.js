@@ -144,9 +144,7 @@ class PorterService {
     return result;
   }
 
-  static async deletePorter(request) {
-    const { id } = request.params;
-
+  static async deletePorter(id) {
     const porter = await prisma.porter.findUnique({
       where: { id: Number(id) },
     });
