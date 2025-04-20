@@ -460,6 +460,11 @@ class TripService {
               equipment: true,
               trip_type: true,
               total_participants: true,
+              privateTrips: {
+                select: {
+                  price_per_day: true,
+                },
+              },
               tripBookings: {
                 select: {
                   feedback: {
@@ -626,6 +631,11 @@ class TripService {
         equipment: true,
         trip_type: true,
         total_participants: true,
+        privateTrips: {
+          select: {
+            price_per_day: true,
+          },
+        },
         tripBookings: {
           select: {
             feedback: {
@@ -656,10 +666,11 @@ class TripService {
       const averageRating =
         allFeedback.length > 0 ? totalRating / allFeedback.length : 0;
 
-      const { tripBookings, ...tripData } = trip;
+      const { tripBookings, privateTrips, ...tripData } = trip;
 
       return {
         ...tripData,
+        price_per_day: trip.privateTrips[0]?.price_per_day ?? null,
         feedback: {
           items: allFeedback,
           count: allFeedback.length,
