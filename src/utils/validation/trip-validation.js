@@ -11,7 +11,6 @@ class TripValidation {
     description: z
       .string()
       .min(10, "Deskripsi minimum 10 karakter")
-      .max(500, "Deskripsi maksimum 500 karakter")
       .nonempty("Deskripsi wajib diisi"),
     equipment: z
       .string()
@@ -21,7 +20,6 @@ class TripValidation {
     estimation_time: z
       .string()
       .min(5, "Perkiraan waktu minimum 5 karakter")
-      .max(100, "Perkiraan waktu maksimum 100 karakter")
       .nonempty("Perkiraan waktu wajib diisi"),
     price: z
       .number()
@@ -72,17 +70,14 @@ class TripValidation {
     description: z
       .string()
       .min(10, "Deskripsi minimum 10 karakter")
-      .max(500, "Deskripsi maksimum 500 karakter")
       .optional(),
     equipment: z
       .string()
       .min(10, "Peralatan minimum 10 karakter")
-      .max(500, "Peralatan maksimum 500 karakter")
       .optional(),
     estimation_time: z
       .string()
       .min(5, "Perkiraan waktu minimum 5 karakter")
-      .max(100, "Perkiraan waktu maksimum 100 karakter")
       .optional(),
     price: z
       .number()
