@@ -43,6 +43,7 @@ class BookingService {
 
       if (!guide) throw new ResponseError("Guide tidak ditemukan", 404);
 
+      let additionalPorterFee = 0;
       if (privateBookingData.porters?.length) {
         const porters = await prisma.porter.findMany({
           where: { id: { in: privateBookingData.porters } },
@@ -51,11 +52,18 @@ class BookingService {
         if (porters.length !== privateBookingData.porters.length) {
           throw new ResponseError("Beberapa porter tidak ditemukan", 404);
         }
-      }
 
+        // Validasi tambahan biaya jika porter lebih dari 3
+        const porterCount = privateBookingData.porters.length;
+        if (porterCount > 3) {
+          additionalPorterFee = (porterCount - 3) * 350000;
+        }
+      }
+      
       const total_price =
         trip.price * bookingData.total_participants +
-        privateTrip.price_per_day * privateBookingData.total_days;
+        privateTrip.price_per_day * privateBookingData.total_days +
+        additionalPorterFee;
 
       const booking = await prisma.tripBooking.create({
         data: {
