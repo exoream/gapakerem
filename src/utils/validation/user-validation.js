@@ -21,6 +21,8 @@ class UserValidation {
     number: z
       .string()
       .regex(/^\d+$/, "No HP harus berupa angka")
+      .min(10, "Nomor HP minimum 10 characters")
+      .max(13, "No HP maksimal 13 characters")
       .nonempty("No HP wajib diisi"),
   });
 
@@ -49,6 +51,8 @@ class UserValidation {
     number: z
       .string()
       .regex(/^\d+$/, "No HP harus berupa angka")
+      .min(10, "Nomor HP minimum 10 characters")
+      .max(13, "No HP maksimal 13 characters")
       .optional(),
   });
 }

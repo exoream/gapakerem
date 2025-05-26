@@ -13,6 +13,7 @@ class BookingValidation {
       .number()
       .int("Jumlah peserta harus berupa angka bulat")
       .positive("Jumlah peserta harus lebih besar dari 0")
+      .max(99, "Jumlah peserta maksimal 99 orang")
       .refine((val) => val > 0, {
         message: "Jumlah peserta wajib diisi",
       }),
@@ -29,7 +30,7 @@ class BookingValidation {
     no_hp: z
       .string()
       .min(10, "Nomor HP minimum 10 characters")
-      .max(15, "Nomor HP maximum 15 characters")
+      .max(13, "Nomor HP maximum 13 characters")
       .regex(/^[0-9]+$/, "Nomor HP hanya boleh mengandung angka")
       .nonempty("Nomor HP wajib diisi"),
     meeting_point: z

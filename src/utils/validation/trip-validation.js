@@ -26,6 +26,9 @@ class TripValidation {
       .positive("Harga harus lebih besar dari 0")
       .refine((val) => val > 0, {
         message: "Harga wajib diisi",
+      })
+      .refine((val) => val <= 99999999, {
+        message: "Harga maksimal 8 digit angka",
       }),
     trip_type: z.enum(["open", "private"], {
       errorMap: () => ({ message: "Tipe trip wajib diisi" }),
@@ -57,6 +60,9 @@ class TripValidation {
       .positive("Harga harus lebih besar dari 0")
       .refine((val) => val > 0, {
         message: "Harga wajib diisi",
+      })
+      .refine((val) => val <= 99999999, {
+        message: "Harga maksimal 8 digit angka",
       }),
   });
 
@@ -67,14 +73,8 @@ class TripValidation {
       .max(50, "Nama maximum 50 characters")
       .regex(/^[a-zA-Z\s]+$/, "Nama hanya boleh mengandung huruf dan spasi")
       .optional(),
-    description: z
-      .string()
-      .min(10, "Deskripsi minimum 10 karakter")
-      .optional(),
-    equipment: z
-      .string()
-      .min(10, "Peralatan minimum 10 karakter")
-      .optional(),
+    description: z.string().min(10, "Deskripsi minimum 10 karakter").optional(),
+    equipment: z.string().min(10, "Peralatan minimum 10 karakter").optional(),
     estimation_time: z
       .string()
       .min(5, "Perkiraan waktu minimum 5 karakter")
@@ -83,12 +83,17 @@ class TripValidation {
       .number()
       .positive("Harga harus lebih besar dari 0")
       .refine((val) => val > 0, {
-        message: "Harga opsional",
+        message: "Harga wajib diisi",
+      })
+      .refine((val) => val <= 99999999, {
+        message: "Harga maksimal 8 digit angka",
       })
       .optional(),
-    trip_type: z.enum(["open", "private"], {
-      errorMap: () => ({ message: "Tipe trip opsional" }),
-    }).optional(),
+    trip_type: z
+      .enum(["open", "private"], {
+        errorMap: () => ({ message: "Tipe trip opsional" }),
+      })
+      .optional(),
   });
 
   static updateOpenTripSchema = z.object({
