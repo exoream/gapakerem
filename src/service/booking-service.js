@@ -21,87 +21,92 @@ class BookingService {
     const userId = request.user.id;
 
     // Simpan data booking & private trip
-    const result = await prisma.$transaction(async (prisma) => {
-      const trip = await prisma.trip.findUnique({
-        where: { id: bookingData.id_trip },
-      });
-
-      if (!trip) throw new ResponseError("Trip tidak ditemukan", 404);
-
-      const privateTrip = await prisma.privateTrip.findFirst({
-        where: {
-          id_trip: bookingData.id_trip,
-        },
-      });
-
-      if (!privateTrip)
-        throw new ResponseError("Private trip tidak ditemukan", 404);
-
-      const guide = await prisma.guide.findUnique({
-        where: { id: privateBookingData.id_guide },
-      });
-
-      if (!guide) throw new ResponseError("Guide tidak ditemukan", 404);
-
-      let additionalPorterFee = 0;
-      if (privateBookingData.porters?.length) {
-        const porters = await prisma.porter.findMany({
-          where: { id: { in: privateBookingData.porters } },
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const trip = await tx.trip.findUnique({
+          where: { id: bookingData.id_trip },
         });
 
-        if (porters.length !== privateBookingData.porters.length) {
-          throw new ResponseError("Beberapa porter tidak ditemukan", 404);
-        }
+        if (!trip) throw new ResponseError("Trip tidak ditemukan", 404);
 
-        // Validasi tambahan biaya jika porter lebih dari 3
-        const porterCount = privateBookingData.porters.length;
-        if (porterCount > 3) {
-          additionalPorterFee = (porterCount - 3) * 350000;
-        }
-      }
-      
-      const total_price =
-        trip.price * bookingData.total_participants +
-        privateTrip.price_per_day * privateBookingData.total_days +
-        additionalPorterFee;
-
-      const booking = await prisma.tripBooking.create({
-        data: {
-          ...bookingData,
-          id_user: userId,
-          total_price,
-          trip_type: trip.trip_type,
-        },
-      });
-
-      const privateTripBooking = await prisma.privateTripBooking.create({
-        data: {
-          id_guide: privateBookingData.id_guide,
-          total_days: privateBookingData.total_days,
-          start_date: new Date(privateBookingData.start_date),
-          id_trip_booking: booking.id,
-        },
-      });
-
-      if (privateBookingData.porters?.length) {
-        const porterData = privateBookingData.porters.map((id) => ({
-          id_private_trip_booking: privateTripBooking.id,
-          id_porter: id,
-        }));
-
-        await prisma.porterPrivateTripBooking.createMany({ data: porterData });
-      }
-
-      return {
-        booking: {
-          ...booking,
-          private_trip_booking: {
-            ...privateTripBooking,
-            porters: privateBookingData.porters,
+        const privateTrip = await tx.privateTrip.findFirst({
+          where: {
+            id_trip: bookingData.id_trip,
           },
-        },
-      };
-    });
+        });
+
+        if (!privateTrip)
+          throw new ResponseError("Private trip tidak ditemukan", 404);
+
+        const guide = await tx.guide.findUnique({
+          where: { id: privateBookingData.id_guide },
+        });
+
+        if (!guide) throw new ResponseError("Guide tidak ditemukan", 404);
+
+        let additionalPorterFee = 0;
+        if (privateBookingData.porters?.length) {
+          const porters = await tx.porter.findMany({
+            where: { id: { in: privateBookingData.porters } },
+          });
+
+          if (porters.length !== privateBookingData.porters.length) {
+            throw new ResponseError("Beberapa porter tidak ditemukan", 404);
+          }
+
+          // Validasi tambahan biaya jika porter lebih dari 3
+          const porterCount = privateBookingData.porters.length;
+          if (porterCount > 3) {
+            additionalPorterFee = (porterCount - 3) * 350000;
+          }
+        }
+
+        const total_price =
+          trip.price * bookingData.total_participants +
+          privateTrip.price_per_day * privateBookingData.total_days +
+          additionalPorterFee;
+
+        const booking = await tx.tripBooking.create({
+          data: {
+            ...bookingData,
+            id_user: userId,
+            total_price,
+            trip_type: trip.trip_type,
+          },
+        });
+
+        const privateTripBooking = await tx.privateTripBooking.create({
+          data: {
+            id_guide: privateBookingData.id_guide,
+            total_days: privateBookingData.total_days,
+            start_date: new Date(privateBookingData.start_date),
+            id_trip_booking: booking.id,
+          },
+        });
+
+        if (privateBookingData.porters?.length) {
+          const porterData = privateBookingData.porters.map((id) => ({
+            id_private_trip_booking: privateTripBooking.id,
+            id_porter: id,
+          }));
+
+          await tx.porterPrivateTripBooking.createMany({ data: porterData });
+        }
+
+        return {
+          booking: {
+            ...booking,
+            private_trip_booking: {
+              ...privateTripBooking,
+              porters: privateBookingData.porters,
+            },
+          },
+        };
+      },
+      {
+        timeout: 15000, 
+      }
+    );
 
     return result;
   }
@@ -386,7 +391,7 @@ class BookingService {
         403
       );
     }
-    
+
     if (
       existingBooking.payment_proof &&
       existingBooking.payment_status !== "rejected"
