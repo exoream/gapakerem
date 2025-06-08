@@ -546,56 +546,78 @@ class TripService {
   }
 
   static async createPrivateTrip(request) {
+    // Sanitasi dan parsing body
     const body = sanitizeMultipartBody(request.body);
     body.price = Number(body.price);
 
+    // Validasi data trip dan private trip
     const tripData = Validation.validate(TripValidation.createTripSchema, body);
-
     const privateTripData = Validation.validate(
       TripValidation.createPrivateTripSchema,
       body.private_trip || {}
     );
 
-    if (
-      request.file &&
-      !["image/jpeg", "image/jpg", "image/png"].includes(request.file.mimetype)
-    ) {
-      throw new ResponseError("Format foto harus JPG, JPEG, atau PNG", 400);
-    }
-
-    if (request.file && request.file.size > 2 * 1024 * 1024) {
-      throw new ResponseError("Ukuran foto maksimal 2MB", 400);
-    }
-
-    // Upload foto ke Cloudinary
+    // Validasi file foto
     if (request.file) {
-      const uploadResult = await new Promise((resolve, reject) => {
-        cloudinary.uploader
-          .upload_stream({ folder: "mountains" }, (error, result) => {
-            if (error) reject(new ResponseError("Gagal mengunggah foto", 500));
-            else resolve(result.secure_url);
-          })
-          .end(request.file.buffer);
-      });
-      tripData.mountain_photo = uploadResult;
+      const isValidType = ["image/jpeg", "image/jpg", "image/png"].includes(
+        request.file.mimetype
+      );
+      const isValidSize = request.file.size <= 2 * 1024 * 1024;
+
+      if (!isValidType) {
+        throw new ResponseError("Format foto harus JPG, JPEG, atau PNG", 400);
+      }
+      if (!isValidSize) {
+        throw new ResponseError("Ukuran foto maksimal 2MB", 400);
+      }
+
+      // Upload ke Cloudinary
+      try {
+        const uploadResult = await new Promise((resolve, reject) => {
+          cloudinary.uploader
+            .upload_stream({ folder: "mountains" }, (error, result) => {
+              if (error)
+                reject(new ResponseError("Gagal mengunggah foto", 500));
+              else resolve(result.secure_url);
+            })
+            .end(request.file.buffer);
+        });
+
+        tripData.mountain_photo = uploadResult;
+      } catch (error) {
+        throw new ResponseError("Upload foto gagal", 500);
+      }
     }
 
-    const result = await prisma.$transaction(async (prisma) => {
-      const trip = await prisma.trip.create({
-        data: tripData,
-      });
+    // Jalankan transaksi database dengan timeout (jika perlu)
+    try {
+      const result = await prisma.$transaction(
+        async (tx) => {
+          const trip = await tx.trip.create({ data: tripData });
 
-      const privateTrip = await prisma.privateTrip.create({
-        data: {
-          id_trip: trip.id,
-          price_per_day: privateTripData.price_per_day,
+          const privateTrip = await tx.privateTrip.create({
+            data: {
+              id_trip: trip.id,
+              price_per_day: privateTripData.price_per_day,
+            },
+          });
+
+          return { trip, private_trip: privateTrip };
         },
-      });
+        {
+          timeout: 15000,
+          maxWait: 15000,
+        }
+      );
 
-      return { trip, private_trip: privateTrip };
-    });
-
-    return result;
+      return result;
+    } catch (err) {
+      console.error("Gagal membuat private trip:", err);
+      throw new ResponseError(
+        "Gagal membuat trip privat. Silakan coba lagi.",
+        500
+      );
+    }
   }
 
   static async getAllPrivateTrips(request) {
